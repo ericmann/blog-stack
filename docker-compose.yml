@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  blog:
+    build: .
+    user: "1000"
+    depends_on:
+     - blogdb
+     - memcache
+    environment:
+      WORDPRESS_DB_HOST: blogdb:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_PASSWORD: "${DB_PASSWORD}"
+      WORDPRESS_DB_USER: "${DB_USERNAME}"
+    restart: always
+    volumes:
+     - wordpress_data:/var/www/html
+    networks:
+     - wordpress
+
+  memcache:
+    image: memcached:alpine
+    restart: always
+    networks:
+     - wordpress
+
+  blogdb:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: "${ROOT_PASSWORD}"
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: "${DB_USERNAME}"
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+    restart: always
+    volumes:
+     - db_data:/var/lib/mysql
+    networks:
+     - wordpress
+
+  varnish:
+    build: ./varnish
+    depends_on:
+      - blog
+    restart: always
+    ports:
+      - "8090:80"
+    networks:
+      - wordpress
+    
+volumes:
+  db_data: {}
+  wordpress_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: "${DATA_PATH}"
+
+networks:
+  wordpress:
+    name: wordpress
